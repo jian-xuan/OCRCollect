@@ -1,0 +1,21 @@
+regions:
+  - name: OCRTest
+    left: 106
+    top: 245
+    width: 104
+    height: 23
+  - name: yure
+    left: 89
+    top: 387
+    width: 76
+    height: 21
+  - name: pip
+    left: 88
+    top: 425
+    width: 172
+    height: 20
+
+# OCR接口的URL
+ocr_url: "http://127.0.0.1:1224/api/ocr"
+
+show_log: False
