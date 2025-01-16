@@ -1,4 +1,6 @@
 import json
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from loguru import logger
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -11,21 +13,36 @@ import asyncio
 import os
 import time
 
+
+scheduler = AsyncIOScheduler()
 # 日志目录
 log_path = "logs"
 os.makedirs(log_path, exist_ok=True)
 
 # 配置日志
-log_path_error = os.path.join(log_path, "error_{time:YYYY-MM-DD}.log")
+# 配置 INFO 日志文件
+log_path_info = os.path.join(log_path, "INFO_{time:YYYY-MM-DD}.log")
 logger.add(
-    log_path_error,
+    log_path_info,
     rotation="12:00",  # 每天中午 12:00 创建新文件
-    retention="5 days",  # 保留最近 5 天的日志
+    retention="10 days",  # 保留最近 10 天的日志
     enqueue=True,  # 异步写入
-    level="ERROR",  # 只记录 ERROR 级别及以上的日志
+    level="INFO",  # 只记录 INFO 级别及以上的日志
+    filter=lambda record: record["level"].name == "INFO",  # 只记录 INFO 级别的日志
     format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"  # 日志格式
 )
 
+# 配置 WARN 日志文件
+log_path_warn = os.path.join(log_path, "data_{time:YYYY-MM-DD}.log")
+logger.add(
+    log_path_warn,
+    rotation="12:00",  # 每天中午 12:00 创建新文件
+    retention="10 days",  # 保留最近 10 天的日志
+    enqueue=True,  # 异步写入
+    level="WARNING",  # 只记录 WARN 级别及以上的日志
+    filter=lambda record: record["level"].name == "WARNING",  # 只记录 WARN 级别的日志
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"  # 日志格式
+)
 app = FastAPI()
 show_log = False
 class RegionData(BaseModel):
@@ -39,10 +56,12 @@ class RegionData(BaseModel):
 screenshot_data = {}
 
 def get_config():
-    with open('config.yaml', 'r') as f:
+    with open('config.yaml', 'r',encoding='utf-8') as f:
         config = yaml.safe_load(f)
     return config
-
+@scheduler.scheduled_job('cron', minute='00,10,20,30,40,50', second='20')
+async def sync_data():
+    logger.warning(screenshot_data)
 def capture_screenshot(region):
     left, top, width, height = region['left'], region['top'], region['width'], region['height']
     screenshot = ImageGrab.grab(bbox=(left, top, left + width, top + height))
@@ -82,14 +101,18 @@ async def update_screenshot_data():
         global show_log
         show_log = config['show_log']
         for region in regions:
-            region_name, base64_image = capture_screenshot(region)
-            result = ocr_screenshot(base64_image,ocr_url)
-            logger.info(f" 截图结果 {region_name} : {result}")  # 打印OCR结果
-            screenshot_data[region_name] = result
-            time.sleep(0.1)
+            try:
+                region_name, base64_image = capture_screenshot(region)
+                result = ocr_screenshot(base64_image,ocr_url)
+                logger.info(f" 截图结果 {region_name} : {result}")  # 打印OCR结果
+                screenshot_data[region_name] = result
+                time.sleep(0.1)
+            except Exception as e:
+                logger.error(f"获取截图失败: {e}")
         await asyncio.sleep(5)  # 等待5秒
 
 async def start_background_task():
+    scheduler.start()
     asyncio.create_task(update_screenshot_data())
 
 @app.get("/screenshot_data")
