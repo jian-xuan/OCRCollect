@@ -1,0 +1,78 @@
+regions:
+#   锡炉温度
+  - name: solderPot
+    left: 106
+    top: 245
+    width: 104
+    height: 23
+#   预热区1B设定
+  - name: preHeat1BSet
+    left: 106
+    top: 245
+    width: 104
+    height: 23
+#   预热区1B实际
+  - name: preHeat1BReal
+    left: 89
+    top: 387
+    width: 76
+    height: 21
+#   预热区2B设定
+  - name: preHeat2BSet
+    left: 88
+    top: 425
+    width: 172
+    height: 20
+#   预热区2B实际
+  - name: preHeat2BReal
+    left: 89
+    top: 387
+    width: 76
+    height: 21
+#   预热区3B设定
+  - name: preHeat3BSet
+    left: 88
+    top: 425
+    width: 172
+    height: 20
+#   预热区3B实际
+  - name: preHeat3BReal
+    left: 89
+    top: 387
+    width: 76
+    height: 21
+#   导轨宽度
+  - name: GuideWidth
+    left: 89
+    top: 387
+    width: 76
+    height: 21
+#   波峰1
+  - name: crest1
+    left: 89
+    top: 387
+    width: 76
+    height: 21
+#   波峰2
+  - name: crest2
+    left: 89
+    top: 387
+    width: 76
+    height: 21
+#   产能
+  - name: Capacity
+    left: 89
+    top: 387
+    width: 76
+    height: 21
+#   预热风机
+  - name: preHeatFan
+    left: 89
+    top: 387
+    width: 76
+    height: 21
+
+# OCR接口的URL
+ocr_url: "http://127.0.0.1:1224/api/ocr"
+
+show_log: False
