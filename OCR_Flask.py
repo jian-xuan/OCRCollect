@@ -5,6 +5,8 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.schedulers.background import BackgroundScheduler
 import logging
 from logging.handlers import TimedRotatingFileHandler
+
+from apscheduler.triggers.interval import IntervalTrigger
 from flask import Flask, jsonify
 import yaml
 from PIL import ImageGrab
@@ -108,23 +110,21 @@ def ocr_screenshot(base64_image, url):
     return res
 
 def update_screenshot_data():
-    while True:
-        config = get_config()
-        regions = config['regions']
-        ocr_url = config['ocr_url']
-        global show_log
-        show_log = config['show_log']
-        for region in regions:
-            try:
-                region_name, base64_image = capture_screenshot(region)
-                result = ocr_screenshot(base64_image, ocr_url)
-                logger.info(" 截图结果 {} : {}".format(region_name, result))  # 使用 str.format() 替换 f-string
-                screenshot_data[region_name] = result
-                time.sleep(0.1)
-            except Exception as e:
-                logger.error("获取截图失败: {}".format(e))  # 使用 str.format() 替换 f-string
-                screenshot_data[region_name] = -1
-        time.sleep(5)  # 等待5秒
+    config = get_config()
+    regions = config['regions']
+    ocr_url = config['ocr_url']
+    global show_log
+    show_log = config['show_log']
+    for region in regions:
+        try:
+            region_name, base64_image = capture_screenshot(region)
+            result = ocr_screenshot(base64_image, ocr_url)
+            logger.info(" 截图结果 {} : {}".format(region_name, result))  # 使用 str.format() 替换 f-string
+            screenshot_data[region_name] = result
+            time.sleep(0.1)
+        except Exception as e:
+            logger.error("获取截图失败: {}".format(e))  # 使用 str.format() 替换 f-string
+            screenshot_data[region['name']] = -1
 
 @app.route("/screenshot_data", methods=["GET"])
 def read_screenshot_data():
@@ -132,7 +132,6 @@ def read_screenshot_data():
 
 if __name__ == '__main__':
     scheduler.add_job(sync_data, CronTrigger(minute='00,10,20,30,40,50', second='20'))
+    scheduler.add_job(update_screenshot_data, IntervalTrigger(seconds=30))
     scheduler.start()
-    import threading
-    threading.Thread(target=update_screenshot_data, daemon=True).start()
     app.run(host="0.0.0.0", port=8000)
