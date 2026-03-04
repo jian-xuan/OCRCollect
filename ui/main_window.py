@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QFrame, QScrollArea, QGridLayout
 )
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon, QColor, QFont
+from PyQt5.QtGui import QIcon, QColor, QFont, QPixmap
 import os
 import sys
 
@@ -52,8 +52,12 @@ class AddVariableDialog(QDialog):
         form_layout.addRow("变量类型:", self.type_combo)
 
         self.name_edit = QLineEdit()
-        self.name_edit.setPlaceholderText("请输入变量名称")
+        self.name_edit.setPlaceholderText("请输入变量名称（英文，用于系统匹配）")
         form_layout.addRow("变量名称:", self.name_edit)
+
+        self.alias_edit = QLineEdit()
+        self.alias_edit.setPlaceholderText("请输入显示名称（中文，给用户提示）")
+        form_layout.addRow("显示别名:", self.alias_edit)
 
         layout.addLayout(form_layout)
         layout.addStretch()
@@ -69,7 +73,8 @@ class AddVariableDialog(QDialog):
     def get_data(self):
         return {
             'type': self.type_combo.currentData(),
-            'name': self.name_edit.text().strip()
+            'name': self.name_edit.text().strip(),
+            'alias': self.alias_edit.text().strip()
         }
 
 
@@ -252,52 +257,187 @@ class MainWindow(QMainWindow):
         layout.setSpacing(16)
 
         # 变量信息卡片
-        info_card = QGroupBox("变量信息")
+        info_card = QGroupBox("📋 变量信息")
+        info_card.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                font-size: 14px;
+                color: #2c3e50;
+            }
+            QGroupBox::title {
+                color: #4834d4;
+            }
+        """)
         info_layout = QFormLayout()
         info_layout.setSpacing(12)
+        info_layout.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        info_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
 
         self.name_label = QLabel("未选择变量")
-        self.name_label.setStyleSheet("font-weight: bold; color: #4834d4;")
-        info_layout.addRow("变量名称:", self.name_label)
+        self.name_label.setStyleSheet("""
+            font-weight: bold;
+            color: #4834d4;
+            font-size: 14px;
+            padding: 4px 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        """)
+        name_label_widget = QLabel("🏷️ 变量名称:")
+        name_label_widget.setStyleSheet("font-weight: 600; color: #34495e;")
+        info_layout.addRow(name_label_widget, self.name_label)
+
+        # 别名编辑框（可编辑）
+        alias_layout = QHBoxLayout()
+        self.alias_edit = QLineEdit()
+        self.alias_edit.setPlaceholderText("输入中文别名")
+        self.alias_edit.setStyleSheet("""
+            QLineEdit {
+                color: #27ae60;
+                border: 1px solid #dcdde1;
+                border-radius: 4px;
+                padding: 4px 8px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #27ae60;
+            }
+        """)
+        self.alias_edit.editingFinished.connect(self._on_alias_changed)
+        alias_layout.addWidget(self.alias_edit, 1)
+
+        # 保存别名按钮
+        self.save_alias_btn = QPushButton("💾 保存")
+        self.save_alias_btn.setObjectName("success_btn")
+        self.save_alias_btn.setMaximumWidth(60)
+        self.save_alias_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #2ecc71;
+            }
+        """)
+        self.save_alias_btn.clicked.connect(self._on_save_alias)
+        alias_layout.addWidget(self.save_alias_btn)
+
+        alias_label_widget = QLabel("🏷️ 显示别名:")
+        alias_label_widget.setStyleSheet("font-weight: 600; color: #34495e;")
+        info_layout.addRow(alias_label_widget, alias_layout)
 
         self.type_label = QLabel("-")
-        info_layout.addRow("变量类型:", self.type_label)
+        self.type_label.setStyleSheet("""
+            font-weight: 600;
+            padding: 4px 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        """)
+        type_label_widget = QLabel("📂 变量类型:")
+        type_label_widget.setStyleSheet("font-weight: 600; color: #34495e;")
+        info_layout.addRow(type_label_widget, self.type_label)
 
         info_card.setLayout(info_layout)
         layout.addWidget(info_card)
 
         # 区域设置卡片
-        region_card = QGroupBox("区域设置")
+        region_card = QGroupBox("🎯 区域设置")
+        region_card.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                font-size: 14px;
+                color: #2c3e50;
+            }
+            QGroupBox::title {
+                color: #e67e22;
+            }
+        """)
         region_layout = QGridLayout()
         region_layout.setSpacing(12)
+        region_layout.setColumnStretch(1, 1)
+        region_layout.setColumnStretch(3, 1)
 
         # X, Y, 宽度, 高度
         self.x_spin = QSpinBox()
         self.x_spin.setRange(0, 9999)
         self.x_spin.valueChanged.connect(self._on_value_changed)
-        region_layout.addWidget(QLabel("X 坐标:"), 0, 0)
+        self.x_spin.wheelEvent = lambda event: None  # 禁用鼠标滚轮
+        x_label = QLabel("📍 X 坐标:")
+        x_label.setStyleSheet("font-weight: 600; color: #34495e;")
+        region_layout.addWidget(x_label, 0, 0)
         region_layout.addWidget(self.x_spin, 0, 1)
 
         self.y_spin = QSpinBox()
         self.y_spin.setRange(0, 9999)
         self.y_spin.valueChanged.connect(self._on_value_changed)
-        region_layout.addWidget(QLabel("Y 坐标:"), 0, 2)
+        self.y_spin.wheelEvent = lambda event: None  # 禁用鼠标滚轮
+        y_label = QLabel("📍 Y 坐标:")
+        y_label.setStyleSheet("font-weight: 600; color: #34495e;")
+        region_layout.addWidget(y_label, 0, 2)
         region_layout.addWidget(self.y_spin, 0, 3)
 
         self.width_spin = QSpinBox()
         self.width_spin.setRange(1, 9999)
         self.width_spin.valueChanged.connect(self._on_value_changed)
-        region_layout.addWidget(QLabel("宽度:"), 1, 0)
+        self.width_spin.wheelEvent = lambda event: None  # 禁用鼠标滚轮
+        width_label = QLabel("↔️ 宽度:")
+        width_label.setStyleSheet("font-weight: 600; color: #34495e;")
+        region_layout.addWidget(width_label, 1, 0)
         region_layout.addWidget(self.width_spin, 1, 1)
 
         self.height_spin = QSpinBox()
         self.height_spin.setRange(1, 9999)
         self.height_spin.valueChanged.connect(self._on_value_changed)
-        region_layout.addWidget(QLabel("高度:"), 1, 2)
+        self.height_spin.wheelEvent = lambda event: None  # 禁用鼠标滚轮
+        height_label = QLabel("↕️ 高度:")
+        height_label.setStyleSheet("font-weight: 600; color: #34495e;")
+        region_layout.addWidget(height_label, 1, 2)
         region_layout.addWidget(self.height_spin, 1, 3)
 
         region_card.setLayout(region_layout)
         layout.addWidget(region_card)
+
+        # 截图预览卡片
+        preview_card = QGroupBox("📷 截图预览")
+        preview_card.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                font-size: 14px;
+                color: #2c3e50;
+            }
+            QGroupBox::title {
+                color: #3498db;
+            }
+        """)
+        preview_layout = QVBoxLayout()
+        preview_layout.setSpacing(12)
+
+        # 截图显示标签
+        self.preview_label = QLabel("暂无截图")
+        self.preview_label.setAlignment(Qt.AlignCenter)
+        self.preview_label.setMinimumHeight(150)
+        self.preview_label.setStyleSheet("""
+            QLabel {
+                background-color: #f5f6fa;
+                border: 2px dashed #dcdde1;
+                border-radius: 8px;
+                color: #7f8c8d;
+                font-size: 14px;
+            }
+        """)
+        preview_layout.addWidget(self.preview_label)
+
+        # 截图文件路径
+        self.screenshot_path_label = QLabel("")
+        self.screenshot_path_label.setStyleSheet("color: #95a5a6; font-size: 11px;")
+        self.screenshot_path_label.setWordWrap(True)
+        preview_layout.addWidget(self.screenshot_path_label)
+
+        preview_card.setLayout(preview_layout)
+        layout.addWidget(preview_card)
 
         # 截图按钮
         self.screenshot_btn = QPushButton("📷 截图获取位置")
@@ -319,9 +459,20 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.screenshot_btn)
 
         # Button特有设置
-        self.button_settings_card = QGroupBox("按钮设置")
+        self.button_settings_card = QGroupBox("🔘 按钮设置")
+        self.button_settings_card.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                font-size: 14px;
+                color: #2c3e50;
+            }
+            QGroupBox::title {
+                color: #e67e22;
+            }
+        """)
         button_layout = QFormLayout()
         button_layout.setSpacing(12)
+        button_layout.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
         # On图片
         on_layout = QHBoxLayout()
@@ -331,7 +482,9 @@ class MainWindow(QMainWindow):
         self.on_image_btn = QPushButton("浏览...")
         self.on_image_btn.clicked.connect(lambda: self._select_image('on_image'))
         on_layout.addWidget(self.on_image_btn)
-        button_layout.addRow("On 图片:", on_layout)
+        on_label = QLabel("✅ On 图片:")
+        on_label.setStyleSheet("font-weight: 600; color: #34495e;")
+        button_layout.addRow(on_label, on_layout)
 
         # Off图片
         off_layout = QHBoxLayout()
@@ -341,7 +494,9 @@ class MainWindow(QMainWindow):
         self.off_image_btn = QPushButton("浏览...")
         self.off_image_btn.clicked.connect(lambda: self._select_image('off_image'))
         off_layout.addWidget(self.off_image_btn)
-        button_layout.addRow("Off 图片:", off_layout)
+        off_label = QLabel("⭕ Off 图片:")
+        off_label.setStyleSheet("font-weight: 600; color: #34495e;")
+        button_layout.addRow(off_label, off_layout)
 
         # 阈值
         self.threshold_spin = QDoubleSpinBox()
@@ -350,7 +505,9 @@ class MainWindow(QMainWindow):
         self.threshold_spin.setDecimals(2)
         self.threshold_spin.setValue(0.8)
         self.threshold_spin.valueChanged.connect(self._on_value_changed)
-        button_layout.addRow("匹配阈值:", self.threshold_spin)
+        threshold_label = QLabel("🎯 匹配阈值:")
+        threshold_label.setStyleSheet("font-weight: 600; color: #34495e;")
+        button_layout.addRow(threshold_label, self.threshold_spin)
 
         self.button_settings_card.setLayout(button_layout)
         layout.addWidget(self.button_settings_card)
@@ -370,16 +527,25 @@ class MainWindow(QMainWindow):
         # 工具栏
         toolbar = QHBoxLayout()
 
-        toolbar.addWidget(QLabel("📟 控制台输出"))
+        console_title = QLabel("📟 控制台输出")
+        console_title.setStyleSheet("""
+            font-size: 14px;
+            font-weight: bold;
+            color: #2c3e50;
+            padding: 4px 8px;
+        """)
+        toolbar.addWidget(console_title)
         toolbar.addStretch()
 
         # 日志级别过滤
-        toolbar.addWidget(QLabel("日志级别:"))
+        log_level_label = QLabel("📊 日志级别:")
+        log_level_label.setStyleSheet("font-weight: 600; color: #34495e;")
+        toolbar.addWidget(log_level_label)
         self.log_level_combo = QComboBox()
-        self.log_level_combo.addItem("DEBUG", 10)
-        self.log_level_combo.addItem("INFO", 20)
-        self.log_level_combo.addItem("WARNING", 30)
-        self.log_level_combo.addItem("ERROR", 40)
+        self.log_level_combo.addItem("🐛 DEBUG", 10)
+        self.log_level_combo.addItem("ℹ️ INFO", 20)
+        self.log_level_combo.addItem("⚠️ WARNING", 30)
+        self.log_level_combo.addItem("❌ ERROR", 40)
         self.log_level_combo.setCurrentIndex(1)
         toolbar.addWidget(self.log_level_combo)
 
@@ -415,14 +581,27 @@ class MainWindow(QMainWindow):
         layout.setSpacing(16)
 
         # OCR设置
-        ocr_group = QGroupBox("OCR设置")
+        ocr_group = QGroupBox("🔍 OCR设置")
+        ocr_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                font-size: 14px;
+                color: #2c3e50;
+            }
+            QGroupBox::title {
+                color: #3498db;
+            }
+        """)
         ocr_layout = QFormLayout()
         ocr_layout.setSpacing(12)
+        ocr_layout.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
         self.ocr_url_edit = QLineEdit()
         self.ocr_url_edit.setText(self.config_manager.get_ocr_url())
         self.ocr_url_edit.editingFinished.connect(self._on_ocr_url_changed)
-        ocr_layout.addRow("OCR服务地址:", self.ocr_url_edit)
+        ocr_url_label = QLabel("🔗 服务地址:")
+        ocr_url_label.setStyleSheet("font-weight: 600; color: #34495e;")
+        ocr_layout.addRow(ocr_url_label, self.ocr_url_edit)
 
         self.show_log_check = QCheckBox("启用详细日志输出")
         self.show_log_check.setChecked(self.config_manager.get_show_log())
@@ -433,16 +612,26 @@ class MainWindow(QMainWindow):
         layout.addWidget(ocr_group)
 
         # 启动设置
-        startup_group = QGroupBox("启动设置")
+        startup_group = QGroupBox("⚙️ 启动设置")
+        startup_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                font-size: 14px;
+                color: #2c3e50;
+            }
+            QGroupBox::title {
+                color: #27ae60;
+            }
+        """)
         startup_layout = QFormLayout()
         startup_layout.setSpacing(12)
 
-        self.auto_startup_check = QCheckBox("开机时自动启动程序")
+        self.auto_startup_check = QCheckBox("🖥️ 开机时自动启动程序")
         self.auto_startup_check.setChecked(self.startup_manager.is_startup_enabled())
         self.auto_startup_check.stateChanged.connect(self._on_auto_startup_changed)
         startup_layout.addRow(self.auto_startup_check)
 
-        self.auto_service_check = QCheckBox("启动程序时自动运行OCR服务")
+        self.auto_service_check = QCheckBox("🚀 启动程序时自动运行OCR服务")
         self.auto_service_check.setChecked(
             self.config_manager.get_setting('auto_start_service', True)
         )
@@ -501,15 +690,25 @@ class MainWindow(QMainWindow):
         for var in variables:
             item = QListWidgetItem()
 
-            # 根据类型设置图标和颜色
+            # 根据类型设置图标
             if var['type'] == 'ocr':
                 icon = "📝"
-                tooltip = f"OCR文字识别: {var['name']}"
+                type_name = "OCR"
             else:
                 icon = "🔘"
-                tooltip = f"Button按钮识别: {var['name']}"
+                type_name = "Button"
 
-            item.setText(f"{icon} {var['name']}")
+            # 显示名称：如果有别名则显示 别名(英文名)，否则只显示英文名
+            name = var['name']
+            alias = var.get('alias', '')
+            if alias:
+                display_text = f"{icon} {alias} ({name})"
+                tooltip = f"{type_name}识别\n别名: {alias}\n变量名: {name}"
+            else:
+                display_text = f"{icon} {name}"
+                tooltip = f"{type_name}识别: {name}"
+
+            item.setText(display_text)
             item.setData(Qt.UserRole, var['name'])
             item.setToolTip(tooltip)
 
@@ -537,6 +736,34 @@ class MainWindow(QMainWindow):
         # 基本信息
         self.name_label.setText(var['name'])
 
+        # 显示别名到编辑框
+        alias = var.get('alias', '')
+        self.alias_edit.setText(alias)
+        if alias:
+            self.alias_edit.setStyleSheet("""
+                QLineEdit {
+                    color: #27ae60;
+                    border: 1px solid #dcdde1;
+                    border-radius: 4px;
+                    padding: 4px 8px;
+                }
+                QLineEdit:focus {
+                    border: 1px solid #27ae60;
+                }
+            """)
+        else:
+            self.alias_edit.setStyleSheet("""
+                QLineEdit {
+                    color: #95a5a6;
+                    border: 1px solid #dcdde1;
+                    border-radius: 4px;
+                    padding: 4px 8px;
+                }
+                QLineEdit:focus {
+                    border: 1px solid #27ae60;
+                }
+            """)
+
         if var['type'] == 'ocr':
             self.type_label.setText("📝 OCR文字识别")
             self.type_label.setStyleSheet("color: #3498db;")
@@ -557,9 +784,24 @@ class MainWindow(QMainWindow):
         self.off_image_edit.setText(var.get('off_image', ''))
         self.threshold_spin.setValue(var.get('threshold', 0.8))
 
+        # 加载截图预览
+        self._load_screenshot_preview(var['name'])
+
     def _clear_detail_form(self):
         """清空详情表单"""
         self.name_label.setText("未选择变量")
+        self.alias_edit.clear()
+        self.alias_edit.setStyleSheet("""
+            QLineEdit {
+                color: #95a5a6;
+                border: 1px solid #dcdde1;
+                border-radius: 4px;
+                padding: 4px 8px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #27ae60;
+            }
+        """)
         self.type_label.setText("-")
         self.x_spin.setValue(0)
         self.y_spin.setValue(0)
@@ -569,6 +811,113 @@ class MainWindow(QMainWindow):
         self.off_image_edit.clear()
         self.threshold_spin.setValue(0.8)
         self.button_settings_card.setVisible(False)
+        # 清空截图预览
+        self.preview_label.setText("暂无截图")
+        self.preview_label.setStyleSheet("""
+            QLabel {
+                background-color: #f5f6fa;
+                border: 2px dashed #dcdde1;
+                border-radius: 8px;
+                color: #7f8c8d;
+                font-size: 14px;
+            }
+        """)
+        self.screenshot_path_label.setText("")
+
+    def _load_screenshot_preview(self, var_name: str):
+        """加载变量截图预览"""
+        import os
+        if getattr(sys, 'frozen', False):
+            base_path = os.getcwd()
+        else:
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        # 构建截图文件路径
+        screenshot_path = os.path.join(base_path, 'images', f'{var_name}.png')
+
+        if os.path.exists(screenshot_path):
+            # 加载并显示图片
+            pixmap = QPixmap(screenshot_path)
+            if not pixmap.isNull():
+                # 缩放图片以适应显示区域
+                scaled_pixmap = pixmap.scaled(
+                    self.preview_label.width() - 20,
+                    200,
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation
+                )
+                self.preview_label.setPixmap(scaled_pixmap)
+                self.preview_label.setStyleSheet("")
+                self.screenshot_path_label.setText(f"截图: {screenshot_path}")
+            else:
+                self.preview_label.setText("截图文件损坏")
+                self.screenshot_path_label.setText(f"路径: {screenshot_path}")
+        else:
+            self.preview_label.setText("暂无截图\n请先使用截图功能获取")
+            self.preview_label.setStyleSheet("""
+                QLabel {
+                    background-color: #f5f6fa;
+                    border: 2px dashed #dcdde1;
+                    border-radius: 8px;
+                    color: #7f8c8d;
+                    font-size: 14px;
+                }
+            """)
+            self.screenshot_path_label.setText(f"预期路径: {screenshot_path}")
+
+    def _on_alias_changed(self):
+        """别名编辑完成时自动保存"""
+        if not self.current_variable:
+            return
+        self._on_save_alias()
+
+    def _on_save_alias(self):
+        """保存别名"""
+        if not self.current_variable:
+            return
+
+        name = self.current_variable['name']
+        new_alias = self.alias_edit.text().strip()
+
+        # 更新配置
+        if self.current_variable['type'] == 'ocr':
+            success = self.config_manager.update_region(name, alias=new_alias)
+        else:
+            success = self.config_manager.update_button(name, alias=new_alias)
+
+        if success:
+            # 更新当前变量数据
+            self.current_variable['alias'] = new_alias
+            # 刷新列表显示
+            self._load_variables()
+            # 更新样式
+            if new_alias:
+                self.alias_edit.setStyleSheet("""
+                    QLineEdit {
+                        color: #27ae60;
+                        border: 1px solid #dcdde1;
+                        border-radius: 4px;
+                        padding: 4px 8px;
+                    }
+                    QLineEdit:focus {
+                        border: 1px solid #27ae60;
+                    }
+                """)
+            else:
+                self.alias_edit.setStyleSheet("""
+                    QLineEdit {
+                        color: #95a5a6;
+                        border: 1px solid #dcdde1;
+                        border-radius: 4px;
+                        padding: 4px 8px;
+                    }
+                    QLineEdit:focus {
+                        border: 1px solid #27ae60;
+                    }
+                """)
+            self.add_console_log(f"✅ 已更新别名: {name} -> {new_alias}", 20)
+        else:
+            self.add_console_log(f"❌ 更新别名失败: {name}", 40)
 
     def _on_value_changed(self):
         """值改变时自动保存"""
@@ -603,10 +952,11 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "警告", "变量名称不能为空")
                 return
 
+            alias = data.get('alias', '')
             if var_type == 'ocr':
-                success = self.config_manager.add_region(name)
+                success = self.config_manager.add_region(name, alias=alias)
             else:
-                success = self.config_manager.add_button(name)
+                success = self.config_manager.add_button(name, alias=alias)
 
             if success:
                 self._load_variables()

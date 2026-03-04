@@ -72,15 +72,16 @@ class ConfigManager:
         
         return variables
     
-    def add_region(self, name: str, left: int = 0, top: int = 0, 
+    def add_region(self, name: str, alias: str = '', left: int = 0, top: int = 0, 
                    width: int = 100, height: int = 30) -> bool:
-        """添加OCR区域变量"""
+        """添加 OCR 区域变量"""
         if self._variable_exists(name):
             print(f"变量 {name} 已存在")
             return False
         
         region = {
             'name': name,
+            'alias': alias,
             'left': left,
             'top': top,
             'width': width,
@@ -93,7 +94,7 @@ class ConfigManager:
         self.config['regions'].append(region)
         return self.save_config()
     
-    def add_button(self, name: str, left: int = 0, top: int = 0,
+    def add_button(self, name: str, alias: str = '', left: int = 0, top: int = 0,
                    width: int = 50, height: int = 50,
                    on_image: str = '', off_image: str = '',
                    threshold: float = 0.8) -> bool:
@@ -104,6 +105,7 @@ class ConfigManager:
         
         button = {
             'name': name,
+            'alias': alias,
             'left': left,
             'top': top,
             'width': width,
@@ -145,9 +147,11 @@ class ConfigManager:
                 for key, value in kwargs.items():
                     if key in ['left', 'top', 'width', 'height']:
                         region[key] = int(value)
+                    elif key == 'alias':
+                        region[key] = str(value)
                 return self.save_config()
         return False
-    
+
     def update_button(self, name: str, **kwargs) -> bool:
         """更新按钮变量"""
         for button in self.config.get('buttons', []):
@@ -159,6 +163,8 @@ class ConfigManager:
                         button[key] = str(value)
                     elif key == 'threshold':
                         button[key] = float(value)
+                    elif key == 'alias':
+                        button[key] = str(value)
                 return self.save_config()
         return False
     

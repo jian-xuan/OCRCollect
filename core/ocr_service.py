@@ -223,6 +223,7 @@ class OCRService(QObject):
             try:
                 name, base64_image = capture_all_screenshot()
                 self.screenshot_data['image'] = base64_image
+                self.logger.info(f"全屏截图成功: ")
             except Exception as e:
                 self.logger.error(f"全屏截图失败: {e}")
         

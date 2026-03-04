@@ -139,6 +139,7 @@ LABEL_STYLE = """
 QLabel {
     font-size: 13px;
     color: #2c3e50;
+    font-weight: 500;
 }
 
 QLabel#title_label {
@@ -163,15 +164,37 @@ QLabel#status_stopped {
     color: #e74c3c;
     font-weight: bold;
 }
+
+/* 表单标签样式 */
+QFormLayout QLabel,
+QGridLayout QLabel {
+    font-size: 13px;
+    font-weight: 600;
+    color: #34495e;
+    padding-right: 8px;
+}
+
+/* 区域设置卡片中的标签 */
+QGroupBox QLabel {
+    font-size: 13px;
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+/* 选项卡标题样式 */
+QTabBar::tab {
+    font-weight: 600;
+}
 """
 
 # 选项卡样式
 TAB_STYLE = """
 QTabWidget::pane {
     border: 2px solid #e0e0e0;
-    border-radius: 8px;
+    border-radius: 0 8px 8px 8px;
     background-color: white;
     top: -2px;
+    padding: 8px;
 }
 
 QTabBar::tab {
@@ -183,8 +206,9 @@ QTabBar::tab {
     padding: 12px 24px;
     margin-right: 4px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     color: #7f8c8d;
+    min-width: 100px;
 }
 
 QTabBar::tab:selected {
@@ -196,6 +220,10 @@ QTabBar::tab:selected {
 QTabBar::tab:hover:!selected {
     background-color: #d5dbdb;
     color: #2c3e50;
+}
+
+QTabBar::tab:first:selected {
+    border-top-left-radius: 8px;
 }
 """
 
